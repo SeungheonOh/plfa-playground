@@ -1,0 +1,202 @@
+{
+  "title": "Programming Language Foundations in Agda",
+  "source": "https://github.com/plfa/plfa.github.io",
+  "license": "CC BY 4.0",
+  "commit": "870f9bb12d61927cdea3311cedcbbc48ac3fc422",
+  "revisionDate": "2026-08-21",
+  "groups": [
+    {
+      "id": "part1",
+      "title": "Part 1 · Logical foundations",
+      "chapters": [
+        {
+          "id": "part1/Naturals",
+          "name": "Naturals",
+          "title": "Naturals: Natural numbers",
+          "sourcePath": "/plfa/content/part1/Naturals.lagda.md",
+          "modulePath": "/plfa/part1/Naturals.lagda.md"
+        },
+        {
+          "id": "part1/Induction",
+          "name": "Induction",
+          "title": "Induction: Proof by Induction",
+          "sourcePath": "/plfa/content/part1/Induction.lagda.md",
+          "modulePath": "/plfa/part1/Induction.lagda.md"
+        },
+        {
+          "id": "part1/Relations",
+          "name": "Relations",
+          "title": "Relations: Inductive definition of relations",
+          "sourcePath": "/plfa/content/part1/Relations.lagda.md",
+          "modulePath": "/plfa/part1/Relations.lagda.md"
+        },
+        {
+          "id": "part1/Equality",
+          "name": "Equality",
+          "title": "Equality: Equality and equational reasoning",
+          "sourcePath": "/plfa/content/part1/Equality.lagda.md",
+          "modulePath": "/plfa/part1/Equality.lagda.md"
+        },
+        {
+          "id": "part1/Isomorphism",
+          "name": "Isomorphism",
+          "title": "Isomorphism: Isomorphism and Embedding",
+          "sourcePath": "/plfa/content/part1/Isomorphism.lagda.md",
+          "modulePath": "/plfa/part1/Isomorphism.lagda.md"
+        },
+        {
+          "id": "part1/Connectives",
+          "name": "Connectives",
+          "title": "Connectives: Conjunction, disjunction, and implication",
+          "sourcePath": "/plfa/content/part1/Connectives.lagda.md",
+          "modulePath": "/plfa/part1/Connectives.lagda.md"
+        },
+        {
+          "id": "part1/Negation",
+          "name": "Negation",
+          "title": "Negation: Negation, with intuitionistic and classical logic",
+          "sourcePath": "/plfa/content/part1/Negation.lagda.md",
+          "modulePath": "/plfa/part1/Negation.lagda.md"
+        },
+        {
+          "id": "part1/Quantifiers",
+          "name": "Quantifiers",
+          "title": "Quantifiers: Universals and existentials",
+          "sourcePath": "/plfa/content/part1/Quantifiers.lagda.md",
+          "modulePath": "/plfa/part1/Quantifiers.lagda.md"
+        },
+        {
+          "id": "part1/Decidable",
+          "name": "Decidable",
+          "title": "Decidable: Booleans and decision procedures",
+          "sourcePath": "/plfa/content/part1/Decidable.lagda.md",
+          "modulePath": "/plfa/part1/Decidable.lagda.md"
+        },
+        {
+          "id": "part1/Lists",
+          "name": "Lists",
+          "title": "Lists: Lists and higher-order functions",
+          "sourcePath": "/plfa/content/part1/Lists.lagda.md",
+          "modulePath": "/plfa/part1/Lists.lagda.md"
+        }
+      ]
+    },
+    {
+      "id": "part2",
+      "title": "Part 2 · Programming language foundations",
+      "chapters": [
+        {
+          "id": "part2/Lambda",
+          "name": "Lambda",
+          "title": "Lambda: Introduction to Lambda Calculus",
+          "sourcePath": "/plfa/content/part2/Lambda.lagda.md",
+          "modulePath": "/plfa/part2/Lambda.lagda.md"
+        },
+        {
+          "id": "part2/Properties",
+          "name": "Properties",
+          "title": "Properties: Progress and Preservation",
+          "sourcePath": "/plfa/content/part2/Properties.lagda.md",
+          "modulePath": "/plfa/part2/Properties.lagda.md"
+        },
+        {
+          "id": "part2/DeBruijn",
+          "name": "DeBruijn",
+          "title": "DeBruijn: Intrinsically-typed de Bruijn representation",
+          "sourcePath": "/plfa/content/part2/DeBruijn.lagda.md",
+          "modulePath": "/plfa/part2/DeBruijn.lagda.md"
+        },
+        {
+          "id": "part2/More",
+          "name": "More",
+          "title": "More: Additional constructs of simply-typed lambda calculus",
+          "sourcePath": "/plfa/content/part2/More.lagda.md",
+          "modulePath": "/plfa/part2/More.lagda.md"
+        },
+        {
+          "id": "part2/Bisimulation",
+          "name": "Bisimulation",
+          "title": "Bisimulation: Relating reduction systems",
+          "sourcePath": "/plfa/content/part2/Bisimulation.lagda.md",
+          "modulePath": "/plfa/part2/Bisimulation.lagda.md"
+        },
+        {
+          "id": "part2/Inference",
+          "name": "Inference",
+          "title": "Inference: Bidirectional type inference",
+          "sourcePath": "/plfa/content/part2/Inference.lagda.md",
+          "modulePath": "/plfa/part2/Inference.lagda.md"
+        },
+        {
+          "id": "part2/Untyped",
+          "name": "Untyped",
+          "title": "Untyped: Untyped lambda calculus with full normalisation",
+          "sourcePath": "/plfa/content/part2/Untyped.lagda.md",
+          "modulePath": "/plfa/part2/Untyped.lagda.md"
+        },
+        {
+          "id": "part2/Substitution",
+          "name": "Substitution",
+          "title": "Substitution: Substitution in the untyped lambda calculus",
+          "sourcePath": "/plfa/content/part2/Substitution.lagda.md",
+          "modulePath": "/plfa/part2/Substitution.lagda.md"
+        },
+        {
+          "id": "part2/BigStep",
+          "name": "BigStep",
+          "title": "BigStep: Big-step semantics of untyped lambda calculus",
+          "sourcePath": "/plfa/content/part2/BigStep.lagda.md",
+          "modulePath": "/plfa/part2/BigStep.lagda.md"
+        },
+        {
+          "id": "part2/Confluence",
+          "name": "Confluence",
+          "title": "Confluence: Confluence of untyped lambda calculus",
+          "sourcePath": "/plfa/content/part2/Confluence.lagda.md",
+          "modulePath": "/plfa/part2/Confluence.lagda.md"
+        }
+      ]
+    },
+    {
+      "id": "part3",
+      "title": "Part 3 · Denotational semantics",
+      "chapters": [
+        {
+          "id": "part3/Denotational",
+          "name": "Denotational",
+          "title": "Denotational: Denotational semantics of untyped lambda calculus",
+          "sourcePath": "/plfa/content/part3/Denotational.lagda.md",
+          "modulePath": "/plfa/part3/Denotational.lagda.md"
+        },
+        {
+          "id": "part3/Compositional",
+          "name": "Compositional",
+          "title": "Compositional: The denotational semantics is compositional",
+          "sourcePath": "/plfa/content/part3/Compositional.lagda.md",
+          "modulePath": "/plfa/part3/Compositional.lagda.md"
+        },
+        {
+          "id": "part3/Soundness",
+          "name": "Soundness",
+          "title": "Soundness: Soundness of reduction with respect to denotational semantics",
+          "sourcePath": "/plfa/content/part3/Soundness.lagda.md",
+          "modulePath": "/plfa/part3/Soundness.lagda.md"
+        },
+        {
+          "id": "part3/Adequacy",
+          "name": "Adequacy",
+          "title": "Adequacy: Adequacy of denotational semantics with respect to operational semantics",
+          "sourcePath": "/plfa/content/part3/Adequacy.lagda.md",
+          "modulePath": "/plfa/part3/Adequacy.lagda.md"
+        },
+        {
+          "id": "part3/ContextualEquivalence",
+          "name": "ContextualEquivalence",
+          "title": "ContextualEquivalence: Denotational equality implies contextual equivalence",
+          "sourcePath": "/plfa/content/part3/ContextualEquivalence.lagda.md",
+          "modulePath": "/plfa/part3/ContextualEquivalence.lagda.md"
+        }
+      ]
+    }
+  ]
+}

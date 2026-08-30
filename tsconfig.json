@@ -1,0 +1,10 @@
+{
+  "extends": "./.svelte-kit/tsconfig.json",
+  "files": [],
+  "include": [],
+  "exclude": [],
+  "references": [
+    { "path": "./tsconfigs/tsconfig.app.json" },
+    { "path": "./tsconfigs/tsconfig.worker.json" }
+  ]
+}

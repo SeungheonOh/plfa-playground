@@ -1,0 +1,40 @@
+diff --git a/cabal.project.wasm32 b/cabal.project.wasm32
+index d8d80c7..6242a8f 100644
+--- a/cabal.project.wasm32
++++ b/cabal.project.wasm32
+@@ -2,6 +2,7 @@ packages:
+   .
+   wasm-submodules/agda
+   wasm-submodules/network
++  wasm-submodules/entropy
+ 
+ source-repository-package
+   type: git  
+diff --git a/wasm-submodules/entropy/entropy.cabal b/wasm-submodules/entropy/entropy.cabal
+index ca44766..0a8053f 100644
+--- a/wasm-submodules/entropy/entropy.cabal
++++ b/wasm-submodules/entropy/entropy.cabal
+@@ -13,7 +13,7 @@ category:       Data, Cryptography
+ homepage:       https://github.com/TomMD/entropy
+ bug-reports:    https://github.com/TomMD/entropy/issues
+ stability:      stable
+ 
+-build-type:     Custom
++build-type:     Simple
+ 
+ tested-with:
+   GHC == 9.12.1
+@@ -38,13 +38,6 @@ Flag DoNotGetEntropy
+   Default: False
+   Manual: True
+ 
+-custom-setup
+-  setup-depends: Cabal >= 1.10 && < 3.15
+-               , base < 5
+-               , filepath < 1.6
+-               , directory < 1.4
+-               , process < 1.7
+-
+ library
+   ghc-options:  -O2
+   exposed-modules: System.Entropy

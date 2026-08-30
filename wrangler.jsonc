@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "plfa-playground",
+  "account_id": "e855335a6175305976cc984075979c30",
+  "compatibility_date": "2026-08-29",
+  "workers_dev": true,
+  "preview_urls": true,
+  "assets": {
+    "directory": "./build",
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [
+    {
+      "pattern": "plfa.isotopy.xyz",
+      "custom_domain": true
+    }
+  ]
+}

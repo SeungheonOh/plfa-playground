@@ -1,0 +1,65 @@
+:root {
+  font-family:
+    Arial,
+    Helvetica,
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+  color: #171a16;
+  background: #e8ebe5;
+  font-synthesis: none;
+  --canvas: #e8ebe5;
+  --surface: #f8f9f5;
+  --surface-soft: #e7eae3;
+  --line: #adb3a9;
+  --line-strong: #6f776d;
+  --text: #171a16;
+  --muted: #565d54;
+  --faint: #7e867b;
+  --green: #176d54;
+  --green-dark: #0e503c;
+  --green-soft: #dcebe3;
+  --amber: #81510f;
+  --amber-soft: #f4e9cd;
+  --red: #9c2925;
+  --red-soft: #f2dfdc;
+}
+* {
+  box-sizing: border-box;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+*::before,
+*::after {
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+html,
+body,
+body > div {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+body {
+  overflow: hidden;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button {
+  color: inherit;
+}
+::selection {
+  background: #c8e5d9;
+}
+.mono {
+  font-family: "JuliaMono", "SFMono-Regular", Consolas, monospace;
+}
+@media (max-width: 760px) {
+  body {
+    overflow: auto;
+  }
+}

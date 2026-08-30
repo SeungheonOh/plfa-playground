@@ -1,0 +1,60 @@
+{
+  "name": "agda-playground",
+  "version": "0.1.0",
+  "description": "A complete Agda 2.8 editor and interaction environment running in the browser through WebAssembly.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build && node scripts/prepare-cloudflare-assets.mjs",
+    "deploy": "npm run build && wrangler deploy",
+    "preview": "vite preview",
+    "prepare": "svelte-kit sync || true",
+    "svelte-kit-sync": "svelte-kit sync && rm -f node_modules/.tmp/*.tsbuildinfo",
+    "sync:plfa": "node scripts/sync-plfa.mjs",
+    "precompile:plfa": "node scripts/precompile-plfa.mjs",
+    "tsc": "tsc -b",
+    "check": "npm run svelte-kit-sync && svelte-check --tsconfig ./tsconfigs/tsconfig.app.json",
+    "check:watch": "npm run svelte-kit-sync && svelte-check --tsconfig ./tsconfigs/tsconfig.app.json --watch",
+    "test:unit": "vitest",
+    "test": "npm run test:unit -- --run"
+  },
+  "devDependencies": {
+    "@sveltejs/kit": "^2.70.3",
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "@types/node": "^26.4.0",
+    "@typescript-eslint/types": "^8.68.0",
+    "playwright-core": "^1.62.1",
+    "prettier": "^3.9.6",
+    "prettier-plugin-svelte": "^3.5.2",
+    "svelte": "^5.57.0",
+    "svelte-check": "^4.4.5",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.127.1"
+  },
+  "engines": {
+    "node": ">=20.19.0 <25.0.0"
+  },
+  "dependencies": {
+    "@andy0130tw/vscode-jsonrpc-esm": "^9.0.0-next-esm.9",
+    "@codemirror/autocomplete": "^6.20.1",
+    "@codemirror/commands": "^6.10.2",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/language": "^6.12.2",
+    "@codemirror/lint": "^6.9.5",
+    "@codemirror/lsp-client": "^6.2.2",
+    "@codemirror/state": "^6.5.4",
+    "@codemirror/view": "^6.39.16",
+    "@lucide/svelte": "^1.37.0",
+    "@runno/wasi": "^0.10.0",
+    "@sveltejs/adapter-static": "^3.0.10",
+    "codemirror": "6.0.2",
+    "comlink": "^4.4.2",
+    "jszip": "^3.10.1",
+    "marked": "^16.4.2",
+    "spsc": "^0.0.7",
+    "zod": "^4.3.6"
+  }
+}
