@@ -80,8 +80,8 @@ interface AgdaVersionSpec {
   compressedPath?: string;
   byteLength?: number;
   stdlibCandidates: string[];
-  // zip archive to unpack to the initial drive. since 2.8.0 this is no longer required.
-  // instead, a `--setup` command must be executed once
+  // Zip archive to unpack to the initial drive. Agda 2.8 still runs
+  // `--setup`, but this archive also carries primitive interfaces.
   dataPath?: string;
 }
 
@@ -100,8 +100,9 @@ export const agdaVersionMap: Record<SupportedAgdaVersion, AgdaVersionSpec> = {
   "2.8.0": {
     path: asset("/als-2.8ext.wasm"),
     compressedPath: asset("/als-2.8ext.wasm.gz"),
-    byteLength: 28_841_108,
+    byteLength: 28_921_665,
     stdlibCandidates: ["2.3"],
+    dataPath: asset("/agda-data.zip"),
   },
 };
 
@@ -121,8 +122,17 @@ export async function fetchWASMAndData(agdaVersion: SupportedAgdaVersion) {
     if (compressed.ok && compressed.body) {
       const headers = new Headers({ "Content-Type": "application/wasm" });
       if (byteLength) headers.set("Content-Length", String(byteLength));
+      // Some static servers attach Content-Encoding to .gz files, so fetch
+      // has already decoded the response body. Others serve the gzip bytes as
+      // an opaque file and need an explicit DecompressionStream.
+      const body = compressed.headers
+        .get("Content-Encoding")
+        ?.toLowerCase()
+        .includes("gzip")
+        ? compressed.body
+        : compressed.body.pipeThrough(new DecompressionStream("gzip"));
       wasm = new Response(
-        compressed.body.pipeThrough(new DecompressionStream("gzip")),
+        body,
         { headers },
       );
     } else {
@@ -195,6 +205,8 @@ export class AgdaController {
   lastAction = $state("Waiting for Agda");
   pendingExpression: string | undefined;
   needsReload = false;
+  loadedSnapshot?: { filePath: string; source: string };
+  pendingLoadSnapshot?: { filePath: string; source: string };
 
   _lspWorker: Worker | undefined;
   _driveHostWorker: Worker | undefined;
@@ -403,9 +415,18 @@ export class AgdaController {
           stdin: this.config.driveBuffers.stdout,
           stdout: this.config.driveBuffers.stdin,
         },
-        // This pinned ALS fork is raw-JSON-only; it intentionally removed the
-        // old --raw switch from its command-line parser.
-        args: [],
+        // ALS drives Agda through its interactive command loop, but unlike the
+        // `agda --interaction` executable it does not enable Agda's loaded-file
+        // cache by default. Pass the matching Agda option explicitly so repeat
+        // checks can reuse declarations that have not changed.
+        args: [
+          "+RTS",
+          "-A64m",
+          "-RTS",
+          "+AGDA",
+          "--interaction",
+          "-AGDA",
+        ],
       },
       (worker) => {
         this._lspWorker = worker;
@@ -496,6 +517,8 @@ export class AgdaController {
     this.driveArchiveLoading = false;
     this._archiveMountPromise = undefined;
     this._mountedDriveArchives.clear();
+    this.loadedSnapshot = undefined;
+    this.pendingLoadSnapshot = undefined;
 
     this.alsWorkerStatus = "terminated";
     this.deactivate();
@@ -512,6 +535,20 @@ export class AgdaController {
     if (this.alsWorkerStatus !== "active") {
       throw new Error("Agda is still starting");
     }
+
+    const source = this.editorView?.state.doc.toString();
+    if (source == null) throw new Error("The Agda editor is not ready");
+
+    if (
+      this.checked &&
+      this.loadedSnapshot?.filePath === this.currentFilePath &&
+      this.loadedSnapshot.source === source
+    ) {
+      this.needsReload = false;
+      this.lastAction = "Already checked";
+      return;
+    }
+
     this.lastAction = "Checking source…";
     this.problems = [];
     this.lastResult = null;
@@ -522,7 +559,16 @@ export class AgdaController {
     await this.syncEditorToDrive();
 
     const encodedFilePath = JSON.stringify(this.currentFilePath);
-    await this.sendInteraction(`Cmd_load ${encodedFilePath} []`);
+    this.pendingLoadSnapshot = {
+      filePath: this.currentFilePath,
+      source,
+    };
+    try {
+      await this.sendInteraction(`Cmd_load ${encodedFilePath} []`);
+    } catch (error) {
+      this.pendingLoadSnapshot = undefined;
+      throw error;
+    }
   }
 
   async syncEditorToDrive() {
@@ -752,6 +798,15 @@ export class AgdaController {
 
   private handleAgdaResponse(tag: string, contents: any) {
     if (tag === "ResponseEnd") {
+      if (this.pendingLoadSnapshot) {
+        if (
+          this.checked &&
+          !this.problems.some((problem) => problem.severity === "error")
+        ) {
+          this.loadedSnapshot = this.pendingLoadSnapshot;
+        }
+        this.pendingLoadSnapshot = undefined;
+      }
       this.lastAction = this.problems.some(
         (problem) => problem.severity === "error",
       )

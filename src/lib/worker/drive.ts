@@ -70,7 +70,19 @@ const fs: Record<string, Runno.WASIFile> = Object.fromEntries([
 ])
 
 if (agdaDataZip) {
-  await extractZip(agdaDataZip, '/')
+  await extractZip(agdaDataZip, '/', path => {
+    // agda-wasm-dist still ships primitive interfaces beside their sources,
+    // but Agda 2.8 removed local interfaces and only looks in _build. Mount
+    // the bundled interfaces where Agda 2.8 expects them so every browser
+    // session does not recompile the primitive library from source.
+    if (path.startsWith('lib/prim/') && path.endsWith('.agdai')) {
+      return path.replace(
+        'lib/prim/',
+        'lib/prim/_build/2.8.0/agda/',
+      )
+    }
+    return path
+  })
 }
 
 if (agdaStdlibZip) {

@@ -18,7 +18,7 @@ if [[ -z "$wasm_cabal" ]]; then
   exit 1
 fi
 
-for program in git curl tar autoreconf alex happy; do
+for program in git curl tar gzip autoreconf alex happy; do
   if ! command -v "$program" >/dev/null 2>&1; then
     echo "$program is required to build Agda for WASM." >&2
     exit 1
@@ -47,6 +47,14 @@ git -C "$source_dir" checkout --detach FETCH_HEAD
 git -C "$source_dir" submodule update --init --recursive --depth=1
 git -C "$source_dir/wasm-submodules/agda" fetch --depth=1 origin "$agda_revision"
 git -C "$source_dir/wasm-submodules/agda" checkout --detach FETCH_HEAD
+
+agda_patch="$project_root/compiler/patches/agda-fast-import-reload.patch"
+if git -C "$source_dir/wasm-submodules/agda" apply --check "$agda_patch"; then
+  git -C "$source_dir/wasm-submodules/agda" apply "$agda_patch"
+elif ! git -C "$source_dir/wasm-submodules/agda" apply --reverse --check "$agda_patch"; then
+  echo "The Agda fast-import reload patch no longer applies to the pinned source." >&2
+  exit 1
+fi
 
 entropy_dir="$source_dir/wasm-submodules/entropy"
 mkdir -p "$entropy_dir"
@@ -86,4 +94,5 @@ cp "$source_dir/cabal.project.wasm32" "$source_dir/cabal.project"
   fi
 )
 
+gzip -9 --keep --force "$output_path"
 sha256sum "$output_path"

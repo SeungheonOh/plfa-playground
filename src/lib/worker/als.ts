@@ -132,6 +132,10 @@ async function init({
   const env = {
     'HOME': '/home/root',
     'Agda_datadir': '/',
+    // Project archives are immutable for the lifetime of this worker. The
+    // controller writes only the active file, and changing files changes the
+    // compiler cache key, so Agda can safely reuse its imported baseline.
+    'AGDA_IMMUTABLE_IMPORTS': '1',
   }
 
   async function start() {
