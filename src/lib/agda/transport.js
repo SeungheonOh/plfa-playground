@@ -49,8 +49,6 @@ export class ALSMessageRouter {
       throw new Error("RPC sink is not set");
     }
 
-    console.log("<--", JSON.parse(message));
-
     if (this.status === "init") {
       const pp = JSON.parse(message);
       if (Message.isNotification(pp) && pp.method === "initialized") {
@@ -107,8 +105,6 @@ export class ALSMessageRouter {
     const write = (msg) => {
       /** @type {LSPPayload} */
       const pp = JSON.parse(msg);
-      console.log("-->", pp);
-
       // We MUST filter out requests from als and reply with our custom ACK to ensure synchronizations
       if (Message.isRequest(pp)) {
         // payload is a request message, and we must not pass it to lsp-client

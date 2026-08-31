@@ -3,6 +3,7 @@ node_modules
 /.build-tools
 /.build-tmp
 /.compiler-work
+/.compiler-work-stock
 /.compiler-cabal
 /.compiler-meta
 /.compiler-toolchain

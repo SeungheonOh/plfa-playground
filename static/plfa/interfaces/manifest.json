@@ -1,0 +1,216 @@
+{
+  "version": 1,
+  "chapters": {
+    "part1/Naturals": [
+      "part1/Naturals"
+    ],
+    "part1/Induction": [
+      "part1/Naturals",
+      "part1/Induction"
+    ],
+    "part1/Relations": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations"
+    ],
+    "part1/Equality": [
+      "part1/Naturals",
+      "part1/Equality"
+    ],
+    "part1/Isomorphism": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Isomorphism"
+    ],
+    "part1/Connectives": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Isomorphism",
+      "part1/Connectives"
+    ],
+    "part1/Negation": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Isomorphism",
+      "part1/Negation"
+    ],
+    "part1/Quantifiers": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Isomorphism",
+      "part1/Connectives",
+      "part1/Negation",
+      "part1/Quantifiers"
+    ],
+    "part1/Decidable": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Isomorphism",
+      "part1/Negation",
+      "part1/Decidable"
+    ],
+    "part1/Lists": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Isomorphism",
+      "part1/Connectives",
+      "part1/Negation",
+      "part1/Lists"
+    ],
+    "part2/Lambda": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Negation",
+      "part2/Lambda"
+    ],
+    "part2/Properties": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Isomorphism",
+      "part1/Negation",
+      "part2/Lambda",
+      "part2/Properties"
+    ],
+    "part2/DeBruijn": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Negation",
+      "part2/Lambda",
+      "part2/DeBruijn"
+    ],
+    "part2/More": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Negation",
+      "part2/Lambda",
+      "part2/More"
+    ],
+    "part2/Bisimulation": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Negation",
+      "part2/Lambda",
+      "part2/More",
+      "part2/Bisimulation"
+    ],
+    "part2/Inference": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Negation",
+      "part2/Lambda",
+      "part2/More",
+      "part2/Inference"
+    ],
+    "part2/Untyped": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Negation",
+      "part2/Lambda",
+      "part2/Untyped"
+    ],
+    "part2/Substitution": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Negation",
+      "part2/Lambda",
+      "part2/Untyped",
+      "part2/Substitution"
+    ],
+    "part2/BigStep": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Negation",
+      "part2/Lambda",
+      "part2/Untyped",
+      "part2/Substitution",
+      "part2/BigStep"
+    ],
+    "part2/Confluence": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Negation",
+      "part2/Lambda",
+      "part2/Untyped",
+      "part2/Substitution",
+      "part2/Confluence"
+    ],
+    "part3/Denotational": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Negation",
+      "part2/Lambda",
+      "part2/Untyped",
+      "part2/Substitution",
+      "part3/Denotational"
+    ],
+    "part3/Compositional": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Negation",
+      "part2/Lambda",
+      "part2/Untyped",
+      "part2/Substitution",
+      "part3/Denotational",
+      "part3/Compositional"
+    ],
+    "part3/Soundness": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Negation",
+      "part2/Lambda",
+      "part2/Untyped",
+      "part2/Substitution",
+      "part3/Denotational",
+      "part3/Compositional",
+      "part3/Soundness"
+    ],
+    "part3/Adequacy": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Negation",
+      "part2/Lambda",
+      "part2/Untyped",
+      "part2/Substitution",
+      "part2/BigStep",
+      "part3/Denotational",
+      "part3/Compositional",
+      "part3/Soundness",
+      "part3/Adequacy"
+    ],
+    "part3/ContextualEquivalence": [
+      "part1/Naturals",
+      "part1/Induction",
+      "part1/Relations",
+      "part1/Negation",
+      "part2/Lambda",
+      "part2/Untyped",
+      "part2/Substitution",
+      "part2/BigStep",
+      "part3/Denotational",
+      "part3/Compositional",
+      "part3/Soundness",
+      "part3/Adequacy",
+      "part3/ContextualEquivalence"
+    ]
+  }
+}

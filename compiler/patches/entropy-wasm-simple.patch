@@ -14,7 +14,7 @@ diff --git a/wasm-submodules/entropy/entropy.cabal b/wasm-submodules/entropy/ent
 index ca44766..0a8053f 100644
 --- a/wasm-submodules/entropy/entropy.cabal
 +++ b/wasm-submodules/entropy/entropy.cabal
-@@ -13,7 +13,7 @@ category:       Data, Cryptography
+@@ -15,8 +15,8 @@ category:       Data, Cryptography
  homepage:       https://github.com/TomMD/entropy
  bug-reports:    https://github.com/TomMD/entropy/issues
  stability:      stable
@@ -24,7 +24,7 @@ index ca44766..0a8053f 100644
  
  tested-with:
    GHC == 9.12.1
-@@ -38,13 +38,6 @@ Flag DoNotGetEntropy
+@@ -45,13 +45,6 @@ Flag DoNotGetEntropy
    Default: False
    Manual: True
  

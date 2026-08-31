@@ -47,16 +47,16 @@ git -C "$source_dir" checkout --detach FETCH_HEAD
 git -C "$source_dir" submodule update --init --recursive --depth=1
 git -C "$source_dir/wasm-submodules/agda" fetch --depth=1 origin "$agda_revision"
 git -C "$source_dir/wasm-submodules/agda" checkout --detach FETCH_HEAD
-
-agda_patch="$project_root/compiler/patches/agda-fast-import-reload.patch"
-if git -C "$source_dir/wasm-submodules/agda" apply --check "$agda_patch"; then
-  git -C "$source_dir/wasm-submodules/agda" apply "$agda_patch"
-elif ! git -C "$source_dir/wasm-submodules/agda" apply --reverse --check "$agda_patch"; then
-  echo "The Agda fast-import reload patch no longer applies to the pinned source." >&2
+git -C "$source_dir/wasm-submodules/agda" submodule update --init --recursive --depth=1
+if ! git -C "$source_dir/wasm-submodules/agda" diff --quiet ||
+  ! git -C "$source_dir/wasm-submodules/agda" diff --cached --quiet; then
+  echo "The pinned Agda source contains local modifications; refusing to build a non-stock compiler." >&2
   exit 1
 fi
 
 entropy_dir="$source_dir/wasm-submodules/entropy"
+git -C "$source_dir" restore --source=HEAD --worktree -- cabal.project.wasm32
+rm -rf "$entropy_dir"
 mkdir -p "$entropy_dir"
 curl -fL \
   "https://hackage.haskell.org/package/entropy-$entropy_version/entropy-$entropy_version.tar.gz" |
@@ -80,7 +80,10 @@ cp "$source_dir/cabal.project.wasm32" "$source_dir/cabal.project"
 (
   cd "$source_dir"
   "$wasm_cabal" update
-  "$wasm_cabal" configure --flag=Agda-2-8-0
+  # Cabal otherwise defaults libraries/executables to -O1. -O2 costs build
+  # time but improves the stock compiler's hot deserialisation/typechecking
+  # path; this changes build flags only, never Agda source.
+  "$wasm_cabal" configure --flag=Agda-2-8-0 --enable-optimization=2
   "$wasm_cabal" build lib:agda
   "$wasm_cabal" build --dependencies-only
   "$wasm_cabal" build exe:als

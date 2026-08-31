@@ -40,6 +40,13 @@ export default defineConfig(async ({ command }) => {
   return {
     server: {
       port: 5173,
+      watch: {
+        ignored: [
+          "**/.build-tmp/**",
+          "**/.compiler-toolchain/**",
+          "**/research/**",
+        ],
+      },
     },
     define: {
       // XXX: is using env better?

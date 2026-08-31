@@ -14,6 +14,7 @@ import {
   makeDriveHostWorker,
   makeLspWorker,
   mountArchiveOnDrive,
+  persistDriveCache,
   traceFetchProgress,
   writeSourceFileToDrive,
 } from "$lib";
@@ -34,6 +35,7 @@ import {
   getAgdaGoalContents,
   getAgdaGoals,
 } from "./agda/goals";
+import { browserAgdaSource } from "./agda/browser-source";
 
 const isSafari =
   typeof navigator !== "undefined" &&
@@ -98,9 +100,9 @@ export const agdaVersionMap: Record<SupportedAgdaVersion, AgdaVersionSpec> = {
     dataPath: asset("/agda-data.zip"),
   },
   "2.8.0": {
-    path: asset("/als-2.8ext.wasm"),
-    compressedPath: asset("/als-2.8ext.wasm.gz"),
-    byteLength: 28_921_665,
+    path: `${asset("/als-2.8ext.wasm")}?cache=stock-agda-o2-20260831`,
+    compressedPath: `${asset("/als-2.8ext.wasm.gz")}?cache=stock-agda-o2-20260831`,
+    byteLength: 32_996_332,
     stdlibCandidates: ["2.3"],
     dataPath: asset("/agda-data.zip"),
   },
@@ -131,10 +133,7 @@ export async function fetchWASMAndData(agdaVersion: SupportedAgdaVersion) {
         .includes("gzip")
         ? compressed.body
         : compressed.body.pipeThrough(new DecompressionStream("gzip"));
-      wasm = new Response(
-        body,
-        { headers },
-      );
+      wasm = new Response(body, { headers });
     } else {
       wasm = await fetch(path);
     }
@@ -203,8 +202,10 @@ export class AgdaController {
   runningMessages = $state<string[]>([]);
   lastResult = $state<AgdaResult | null>(null);
   lastAction = $state("Waiting for Agda");
+  lastCheckDurationMs = $state<number | undefined>();
   pendingExpression: string | undefined;
-  needsReload = false;
+  pendingCheckStartedAt: number | undefined;
+  pendingGoalCheck = false;
   loadedSnapshot?: { filePath: string; source: string };
   pendingLoadSnapshot?: { filePath: string; source: string };
 
@@ -243,8 +244,22 @@ export class AgdaController {
   }
 
   onInteractionEdit = () => {
-    this.needsReload = true;
-    void this.syncEditorToDrive();
+    const source = this.editorView?.state.doc.toString();
+    if (source != null) {
+      // Give/refine/case-split already changed Agda's live interaction state.
+      // Treat the response edit as the new checked snapshot instead of
+      // immediately throwing that state away with another Cmd_load.
+      this.loadedSnapshot = {
+        filePath: this.currentFilePath,
+        source,
+      };
+      this.checked = this.getGoals().length === 0;
+    }
+    void this.syncEditorToDrive()
+      .then(() => persistDriveCache(this.driveHandle))
+      .catch((error) =>
+        console.warn("Could not persist the Agda cache", error),
+      );
   };
 
   async startALSWASM() {
@@ -359,6 +374,8 @@ export class AgdaController {
       agdaDataZip: options.builtin ?? null,
       agdaStdlibZip: options.stdlib ?? null,
       plfaProjectZip: options.plfa ?? null,
+      cacheNamespace:
+        "stock-agda-2.8.0-o2-stdlib-2.3-plfa-870f9bb12d61927cdea3311cedcbbc48ac3fc422-browser-adapters-v1",
     });
 
     if (event.data !== "fs-ready") {
@@ -419,14 +436,7 @@ export class AgdaController {
         // `agda --interaction` executable it does not enable Agda's loaded-file
         // cache by default. Pass the matching Agda option explicitly so repeat
         // checks can reuse declarations that have not changed.
-        args: [
-          "+RTS",
-          "-A64m",
-          "-RTS",
-          "+AGDA",
-          "--interaction",
-          "-AGDA",
-        ],
+        args: ["+RTS", "-A64m", "-RTS", "+AGDA", "--interaction", "-AGDA"],
       },
       (worker) => {
         this._lspWorker = worker;
@@ -444,12 +454,12 @@ export class AgdaController {
         .getALSVersion()
         .then((ver) => (this.receivedALSVersion = ver)),
       dataFile ? dataFile.arrayBuffer() : Promise.resolve(undefined),
-      fetch(`${asset("/agda-stdlib-2.3.zip")}?cache=plfa-sources-v2`).then(
+      fetch(`${asset("/agda-stdlib-2.3.zip")}?cache=stock-agda-20260831`).then(
         (x) => x.arrayBuffer(),
       ),
-      fetch(`${asset("/plfa/project.zip")}?cache=plfa-sources-v2`).then(
-        (x) => x.arrayBuffer(),
-      ),
+      fetch(
+        `${asset("/plfa/project.zip")}?cache=browser-adapters-v1-20260831`,
+      ).then((x) => x.arrayBuffer()),
     ]);
 
     try {
@@ -519,6 +529,7 @@ export class AgdaController {
     this._mountedDriveArchives.clear();
     this.loadedSnapshot = undefined;
     this.pendingLoadSnapshot = undefined;
+    this.pendingGoalCheck = false;
 
     this.alsWorkerStatus = "terminated";
     this.deactivate();
@@ -540,16 +551,39 @@ export class AgdaController {
     if (source == null) throw new Error("The Agda editor is not ready");
 
     if (
-      this.checked &&
       this.loadedSnapshot?.filePath === this.currentFilePath &&
-      this.loadedSnapshot.source === source
+      this.loadedSnapshot.source === source &&
+      !this.problems.some((problem) => problem.severity === "error")
     ) {
-      this.needsReload = false;
       this.lastAction = "Already checked";
       return;
     }
 
+    const fastGoal = this.getFastGoalCheck(source);
+    if (fastGoal) {
+      this.lastAction = `Checking goal ${fastGoal.id}…`;
+      this.lastCheckDurationMs = undefined;
+      this.pendingCheckStartedAt = performance.now();
+      this.problems = [];
+      this.lastResult = null;
+      this.activeGoalId = fastGoal.id;
+      this.pendingExpression = fastGoal.value;
+      this.pendingGoalCheck = true;
+      try {
+        await this.sendInteraction(
+          `Cmd_give WithoutForce ${fastGoal.id} noRange ${JSON.stringify(fastGoal.value)}`,
+        );
+      } catch (error) {
+        this.pendingCheckStartedAt = undefined;
+        this.pendingGoalCheck = false;
+        throw error;
+      }
+      return;
+    }
+
     this.lastAction = "Checking source…";
+    this.lastCheckDurationMs = undefined;
+    this.pendingCheckStartedAt = performance.now();
     this.problems = [];
     this.lastResult = null;
     this.goalInfo = {};
@@ -567,8 +601,70 @@ export class AgdaController {
       await this.sendInteraction(`Cmd_load ${encodedFilePath} []`);
     } catch (error) {
       this.pendingLoadSnapshot = undefined;
+      this.pendingCheckStartedAt = undefined;
       throw error;
     }
+  }
+
+  /**
+   * A single edit wholly inside one live goal can be checked by stock Agda's
+   * Cmd_give. Everything else deliberately falls back to Cmd_load, so edits
+   * to declarations, imports, or more than one hole always recheck the module.
+   */
+  private getFastGoalCheck(source: string) {
+    const snapshot = this.loadedSnapshot;
+    if (
+      !this.editorView ||
+      !snapshot ||
+      snapshot.filePath !== this.currentFilePath
+    ) {
+      return undefined;
+    }
+
+    const previous = snapshot.source;
+    let prefix = 0;
+    const shortest = Math.min(previous.length, source.length);
+    while (prefix < shortest && previous[prefix] === source[prefix]) prefix++;
+    if (prefix === previous.length && prefix === source.length)
+      return undefined;
+
+    let suffix = 0;
+    while (
+      suffix < previous.length - prefix &&
+      suffix < source.length - prefix &&
+      previous[previous.length - 1 - suffix] ===
+        source[source.length - 1 - suffix]
+    ) {
+      suffix++;
+    }
+
+    const previousChangeEnd = previous.length - suffix;
+    const sourceChangeEnd = source.length - suffix;
+    const delta = source.length - previous.length;
+
+    for (const goal of this.getGoals()) {
+      const previousGoalTo = goal.to - delta;
+      const sourceInnerFrom = goal.from + 2;
+      const sourceInnerTo = goal.to - 2;
+      const previousInnerFrom = goal.from + 2;
+      const previousInnerTo = previousGoalTo - 2;
+      if (
+        source.slice(goal.from, goal.from + 2) !== "{!" ||
+        source.slice(goal.to - 2, goal.to) !== "!}" ||
+        previous.slice(goal.from, goal.from + 2) !== "{!" ||
+        previous.slice(previousGoalTo - 2, previousGoalTo) !== "!}" ||
+        prefix < sourceInnerFrom ||
+        sourceChangeEnd > sourceInnerTo ||
+        prefix < previousInnerFrom ||
+        previousChangeEnd > previousInnerTo
+      ) {
+        continue;
+      }
+
+      const value = source.slice(sourceInnerFrom, sourceInnerTo).trim();
+      if (value) return { id: goal.id, value };
+    }
+    return undefined;
   }
 
   async syncEditorToDrive() {
@@ -585,7 +681,7 @@ export class AgdaController {
       await writeSourceFileToDrive(
         this.driveHandle,
         this.currentFilePath,
-        doc,
+        browserAgdaSource(this.currentFilePath, doc),
       );
     } finally {
       this.driveIsLocked = false;
@@ -782,6 +878,9 @@ export class AgdaController {
     this.goalInfo = {};
     this.activeGoalId = undefined;
     this.lastResult = null;
+    this.lastCheckDurationMs = undefined;
+    this.pendingCheckStartedAt = undefined;
+    this.pendingGoalCheck = false;
     const length = this.editorView.state.doc.length;
     this.editorView.dispatch({
       changes: { from: 0, to: length, insert: source },
@@ -798,14 +897,36 @@ export class AgdaController {
 
   private handleAgdaResponse(tag: string, contents: any) {
     if (tag === "ResponseEnd") {
+      if (this.pendingGoalCheck) {
+        this.checked =
+          this.getGoals().length === 0 &&
+          !this.problems.some((problem) => problem.severity === "error");
+        this.pendingGoalCheck = false;
+      }
+      if (this.pendingCheckStartedAt != null) {
+        this.lastCheckDurationMs =
+          performance.now() - this.pendingCheckStartedAt;
+        this.pendingCheckStartedAt = undefined;
+      }
       if (this.pendingLoadSnapshot) {
-        if (
-          this.checked &&
-          !this.problems.some((problem) => problem.severity === "error")
-        ) {
-          this.loadedSnapshot = this.pendingLoadSnapshot;
+        let completedLoad = false;
+        if (!this.problems.some((problem) => problem.severity === "error")) {
+          this.loadedSnapshot = {
+            filePath: this.pendingLoadSnapshot.filePath,
+            // Cmd_load may expand a `?` into an interaction hole. Store the
+            // editor's actual post-response text so the next diff is exact.
+            source:
+              this.editorView?.state.doc.toString() ??
+              this.pendingLoadSnapshot.source,
+          };
+          completedLoad = true;
         }
         this.pendingLoadSnapshot = undefined;
+        if (completedLoad) {
+          void persistDriveCache(this.driveHandle).catch((error) =>
+            console.warn("Could not persist the Agda cache", error),
+          );
+        }
       }
       this.lastAction = this.problems.some(
         (problem) => problem.severity === "error",
@@ -814,10 +935,6 @@ export class AgdaController {
         : this.checked
           ? "Checked successfully"
           : "Ready";
-      if (this.needsReload) {
-        this.needsReload = false;
-        void this.loadAgdaFile();
-      }
       return;
     }
     if (tag !== "ResponseJSONRaw" || !contents) return;

@@ -3,6 +3,10 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import JSZip from "jszip";
+import {
+  browserAgdaModules,
+  browserAgdaSource,
+} from "../src/lib/agda/browser-source.js";
 
 const projectRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -91,7 +95,10 @@ for (const group of groups) {
     const id = `${group.id}/${name}`;
 
     await writeFile(path.join(groupOutput, `${name}.lagda.md`), source);
-    zip.file(`plfa/${group.id}/${name}.lagda.md`, source);
+    zip.file(
+      `plfa/${group.id}/${name}.lagda.md`,
+      browserAgdaSource(`/plfa/${group.id}/${name}.lagda.md`, source),
+    );
 
     chapters.push({
       id,
@@ -105,10 +112,11 @@ for (const group of groups) {
   manifestGroups.push({ ...group, chapters });
 }
 
-zip.file(
-  "plfa.agda-lib",
-  "name: plfa\ndepend: standard-library\ninclude: .\n",
-);
+zip.file("plfa.agda-lib", "name: plfa\ndepend: standard-library\ninclude: .\n");
+
+for (const [name, source] of Object.entries(browserAgdaModules)) {
+  zip.file(name, source);
+}
 
 const commit = git(["rev-parse", "HEAD"]);
 const revisionDate = git(["show", "-s", "--format=%cs", "HEAD"]);

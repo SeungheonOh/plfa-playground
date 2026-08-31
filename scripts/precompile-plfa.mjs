@@ -11,6 +11,10 @@ import {
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import JSZip from "jszip";
+import {
+  browserAgdaModules,
+  browserAgdaSource,
+} from "../src/lib/agda/browser-source.js";
 
 const projectRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -115,6 +119,22 @@ try {
     JSZip.loadAsync(await readFile(stdlibArchive)),
     JSZip.loadAsync(await readFile(plfaArchive)),
   ]);
+  const sourceManifest = JSON.parse(await readFile(plfaManifest, "utf8"));
+  for (const chapter of sourceManifest.groups.flatMap(
+    (group) => group.chapters,
+  )) {
+    const visibleSource = await readFile(
+      path.join(projectRoot, "static", chapter.sourcePath.replace(/^\//, "")),
+      "utf8",
+    );
+    plfaZip.file(
+      chapter.modulePath.replace(/^\//, ""),
+      browserAgdaSource(chapter.modulePath, visibleSource),
+    );
+  }
+  for (const [name, source] of Object.entries(browserAgdaModules)) {
+    plfaZip.file(name, source);
+  }
   await Promise.all([
     extract(stdlibZip, workingDirectory),
     extract(plfaZip, workingDirectory),
@@ -210,3 +230,5 @@ try {
 } finally {
   await rm(workingDirectory, { recursive: true, force: true });
 }
+
+await import("./index-plfa-interfaces.mjs");

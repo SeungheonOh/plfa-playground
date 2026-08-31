@@ -85,6 +85,11 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     groups: PlfaGroup[];
   }
 
+  interface PlfaInterfaceManifest {
+    version: number;
+    chapters: Record<string, string[]>;
+  }
+
   const controller = new AgdaController({
     agdaBuffers: {
       stdin: SPSC.allocateArrayBuffer(4096),
@@ -109,6 +114,9 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   let plfaExpanded = $state(true);
   let expandedGroups = $state<Record<string, boolean>>({ part1: true });
   let plfaManifest = $state<PlfaManifest | null>(null);
+  let plfaInterfaceManifest = $state<PlfaInterfaceManifest | null>(null);
+  let plfaInterfaceManifestPromise: Promise<PlfaInterfaceManifest | null> | null =
+    null;
   let selectedChapterId = $state("part1/Naturals");
   let plfaMarkdown = $state("");
   let plfaLoading = $state(false);
@@ -138,9 +146,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     plfaChapters.findIndex((chapter) => chapter.id === selectedChapterId),
   );
   const plfaHtml = $derived(
-    plfaMarkdown
-      ? renderPlfaMarkdown(plfaMarkdown)
-      : "",
+    plfaMarkdown ? renderPlfaMarkdown(plfaMarkdown) : "",
   );
   const plfaCodeBlocks = $derived.by(() => {
     const ranges: Array<{ from: number; to: number }> = [];
@@ -180,6 +186,11 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   const compilerLoadingLabel = $derived(
     controller.alsWorkerStatus === "loaded" ? "Starting Agda" : "Loading Agda",
   );
+  const checkDurationLabel = $derived(
+    controller.lastCheckDurationMs == null
+      ? ""
+      : formatDuration(controller.lastCheckDurationMs),
+  );
   const currentGoals = $derived(
     controller.interactionPoints.map(
       (id) => controller.goalInfo[id] ?? { id, context: [] },
@@ -202,16 +213,24 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
       ? `${compilerLoadingLabel} ${progress}%`
       : isBusy
         ? controller.lastAction
-      : inspectorMode === "problems"
-        ? `${controller.problems.length} problem${controller.problems.length === 1 ? "" : "s"}`
-        : inspectorMode === "result"
-          ? (controller.lastResult?.title ?? "Result")
-          : currentGoals.length
-            ? `${currentGoals.length} open goal${currentGoals.length === 1 ? "" : "s"}`
-            : controller.checked
-              ? "Module checked"
-              : "Waiting for check",
+        : inspectorMode === "problems"
+          ? `${controller.problems.length} problem${controller.problems.length === 1 ? "" : "s"}${checkDurationLabel ? ` · ${checkDurationLabel}` : ""}`
+          : inspectorMode === "result"
+            ? (controller.lastResult?.title ?? "Result")
+            : currentGoals.length
+              ? `${currentGoals.length} open goal${currentGoals.length === 1 ? "" : "s"}${checkDurationLabel ? ` · ${checkDurationLabel}` : ""}`
+              : controller.checked
+                ? `Module checked${checkDurationLabel ? ` · ${checkDurationLabel}` : ""}`
+                : "Waiting for check",
   );
+
+  function formatDuration(milliseconds: number) {
+    if (milliseconds < 1000) return `${Math.round(milliseconds)} ms`;
+    if (milliseconds < 60_000) return `${(milliseconds / 1000).toFixed(2)} s`;
+    const minutes = Math.floor(milliseconds / 60_000);
+    const seconds = ((milliseconds % 60_000) / 1000).toFixed(1);
+    return `${minutes}m ${seconds}s`;
+  }
 
   const commandMeta: Record<
     CommandKind,
@@ -293,8 +312,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
             },
             {
               key: "Ctrl-c Ctrl-t",
-              run: () =>
-                runEditorAction(() => controller.queryGoalType()),
+              run: () => runEditorAction(() => controller.queryGoalType()),
             },
             {
               key: "Ctrl-c Ctrl-e",
@@ -420,6 +438,8 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
       .then((manifest) => (plfaManifest = manifest))
       .catch((error) => (plfaError = readableError(error)));
 
+    void loadPlfaInterfaceManifest();
+
     if (!crossOriginIsolated) {
       startupError =
         "This page needs COOP/COEP headers so its Agda worker can use SharedArrayBuffer.";
@@ -430,6 +450,27 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
         startupError = readableError(error);
     });
   });
+
+  function loadPlfaInterfaceManifest() {
+    if (plfaInterfaceManifestPromise) return plfaInterfaceManifestPromise;
+    plfaInterfaceManifestPromise = fetch(
+      "/plfa/interfaces/manifest.json?cache=dependency-closures-v1-20260831",
+    )
+      .then((response) => {
+        if (!response.ok)
+          throw new Error("Could not load the PLFA cache index");
+        return response.json() as Promise<PlfaInterfaceManifest>;
+      })
+      .then((manifest) => {
+        plfaInterfaceManifest = manifest;
+        return manifest;
+      })
+      .catch(() => {
+        plfaInterfaceManifest = null;
+        return null;
+      });
+    return plfaInterfaceManifestPromise;
+  }
 
   $effect(() => {
     if (compilerReady && !didAutoLoad) {
@@ -490,10 +531,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     const container = readerContent;
     const view = editor;
     const containerRect = container.getBoundingClientRect();
-    const maxTop = Math.max(
-      0,
-      container.scrollHeight - container.clientHeight,
-    );
+    const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
     const points = Array.from(
       container.querySelectorAll<HTMLElement>("[data-source-offset]"),
       (element) => ({
@@ -501,9 +539,9 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
         top: Math.max(
           0,
           Math.min(
-              maxTop,
-              element.getBoundingClientRect().top -
-                containerRect.top +
+            maxTop,
+            element.getBoundingClientRect().top -
+              containerRect.top +
               container.scrollTop,
           ),
         ),
@@ -513,7 +551,9 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
       { source: 0, top: 0 },
       { source: view.state.doc.length, top: maxTop },
     );
-    return points.sort((left, right) => left.top - right.top || left.source - right.source);
+    return points.sort(
+      (left, right) => left.top - right.top || left.source - right.source,
+    );
   }
 
   function interpolateScroll(
@@ -523,7 +563,9 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     output: "source" | "top",
   ) {
     if (!points.length) return 0;
-    const sorted = [...points].sort((left, right) => left[input] - right[input]);
+    const sorted = [...points].sort(
+      (left, right) => left[input] - right[input],
+    );
     if (value <= sorted[0][input]) return sorted[0][output];
     for (let index = 1; index < sorted.length; index++) {
       const upper = sorted[index];
@@ -592,17 +634,23 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   }
 
   function plfaInterfaceUrls(chapter: PlfaChapter) {
-    const index = plfaChapters.findIndex((candidate) => candidate.id === chapter.id);
+    const index = plfaChapters.findIndex(
+      (candidate) => candidate.id === chapter.id,
+    );
     if (index < 0) return [];
-    return plfaChapters.slice(0, index + 1).map(
-      (candidate) =>
-        `/plfa/interfaces/${candidate.id}.zip?cache=plfa-interfaces-v2`,
+    const archives =
+      plfaInterfaceManifest?.chapters[chapter.id] ??
+      plfaChapters.slice(0, index + 1).map((candidate) => candidate.id);
+    return archives.map(
+      (archive) =>
+        `/plfa/interfaces/${archive}.zip?cache=dependency-closures-v1-20260831`,
     );
   }
 
-  function ensurePlfaInterfaces(chapter = selectedChapter) {
+  async function ensurePlfaInterfaces(chapter = selectedChapter) {
     if (!chapter) return Promise.resolve();
-    return controller.mountDriveArchives(plfaInterfaceUrls(chapter));
+    await loadPlfaInterfaceManifest();
+    await controller.mountDriveArchives(plfaInterfaceUrls(chapter));
   }
 
   function runCheck() {
@@ -698,8 +746,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
 
     try {
       const sourceResponse = await fetch(chapter.sourcePath);
-      if (!sourceResponse.ok)
-        throw new Error(`Could not open ${chapter.name}`);
+      if (!sourceResponse.ok) throw new Error(`Could not open ${chapter.name}`);
       const originalSource = await sourceResponse.text();
       if (request !== chapterRequest) return;
 
@@ -707,9 +754,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
       const source = localStorage.getItem(storageKey) ?? originalSource;
       plfaMarkdown = source;
       editor?.dispatch({
-        effects: sourceLanguageCompartment.reconfigure(
-          literateAgdaLanguage(),
-        ),
+        effects: sourceLanguageCompartment.reconfigure(literateAgdaLanguage()),
       });
       controller.setDocument(source, chapter.modulePath, storageKey);
       readerContent?.scrollTo({ top: 0 });
@@ -895,7 +940,9 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
         {:else if plfaError}
           <div class="tree-message error">{plfaError}</div>
         {:else}
-          <div class="tree-message"><LoaderCircle size={13} class="spin" />Indexing</div>
+          <div class="tree-message">
+            <LoaderCircle size={13} class="spin" />Indexing
+          </div>
         {/if}
       {/if}
     </aside>
@@ -916,16 +963,16 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
               onclick={() => moveChapter(-1)}
               disabled={selectedChapterIndex <= 0 || plfaLoading}
               aria-label="Previous PLFA chapter"
-              title="Previous chapter"
-            ><ArrowLeft size={14} /></button>
+              title="Previous chapter"><ArrowLeft size={14} /></button
+            >
             <strong>{selectedChapter?.title ?? "PLFA"}</strong>
             <button
               onclick={() => moveChapter(1)}
               disabled={selectedChapterIndex >= plfaChapters.length - 1 ||
                 plfaLoading}
               aria-label="Next PLFA chapter"
-              title="Next chapter"
-            ><ArrowRight size={14} /></button>
+              title="Next chapter"><ArrowRight size={14} /></button
+            >
           </div>
           <div
             class="reader-content"
@@ -935,12 +982,13 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
             onscroll={() => scheduleScrollSync("reader")}
           >
             {#if plfaLoading}
-              <div class="reader-state"><LoaderCircle
-                  size={15}
-                  class="spin"
-                />Opening chapter</div>
+              <div class="reader-state">
+                <LoaderCircle size={15} class="spin" />Opening chapter
+              </div>
             {:else if plfaError}
-              <div class="reader-state error"><CircleAlert size={15} />{plfaError}</div>
+              <div class="reader-state error">
+                <CircleAlert size={15} />{plfaError}
+              </div>
             {:else}
               <article class="markdown-body">{@html plfaHtml}</article>
             {/if}
@@ -957,115 +1005,114 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
         </section>
       {/if}
       <section class="code-pane">
-      <div class="editor-tabs">
-        <button
-          class="editor-tab active"
-          onclick={() => focusResource("agda")}
-        >
-          <FileCode size={15} /><span>{editorFileName}</span>
-        </button>
-      </div>
-      <div class="command-strip">
-        <button
-          title="Goal type (C-c C-t)"
-          onclick={() => runAction(() => controller.queryGoalType())}
-          disabled={!compilerReady || isBusy || !currentGoals.length}
-          ><Info size={14} />Type</button
-        >
-        <button
-          title="Context (C-c C-e)"
-          onclick={() => runAction(() => controller.queryContext())}
-          disabled={!compilerReady || isBusy || !currentGoals.length}
-          ><ListChecks size={14} />Context</button
-        ><span class="strip-divider"></span>
-        <button
-          title="Give hole contents (C-c C-Space)"
-          onclick={() => openCommand("give")}
-          disabled={!compilerReady || isBusy || !currentGoals.length}
-          ><Zap size={14} />Give</button
-        >
-        <button
-          title="Refine or introduce (C-c C-r)"
-          onclick={() => openCommand("refine")}
-          disabled={!compilerReady || isBusy || !currentGoals.length}
-          ><WandSparkles size={14} />Refine</button
-        >
-        <button
-          title="Case split (C-c C-c)"
-          onclick={() => openCommand("case")}
-          disabled={!compilerReady || isBusy || !currentGoals.length}
-          ><Split size={14} />Case split</button
-        ><span class="strip-divider"></span>
-        <button
-          title="Infer type (C-c C-d)"
-          onclick={() => openCommand("infer")}
-          disabled={!compilerReady || isBusy}><Sigma size={14} />Infer</button
-        >
-        <button
-          title="Normalize (C-c C-n)"
-          onclick={() => openCommand("normalize")}
-          disabled={!compilerReady || isBusy}
-          ><RotateCcw size={14} />Normalize</button
-        >
-      </div>
-      <div class="editor-host" bind:this={editorHost}></div>
-      {#if commandKind}
-        <form
-          class="minibuffer"
-          onsubmit={(event) => {
-            event.preventDefault();
-            void submitCommand();
-          }}
-        >
-          <label for="command-input">
-            <span>AGDA</span>
-            <strong>{commandMeta[commandKind].title}</strong>
-          </label>
-          <input
-            id="command-input"
-            class="mono"
-            bind:value={commandValue}
-            placeholder={commandMeta[commandKind].placeholder}
-            title={commandMeta[commandKind].description}
-            autocomplete="off"
-          />
-          <button type="submit" class="minibuffer-run"
-            >{commandMeta[commandKind].action}<span>↵</span></button
+        <div class="editor-tabs">
+          <button
+            class="editor-tab active"
+            onclick={() => focusResource("agda")}
+          >
+            <FileCode size={15} /><span>{editorFileName}</span>
+          </button>
+        </div>
+        <div class="command-strip">
+          <button
+            title="Goal type (C-c C-t)"
+            onclick={() => runAction(() => controller.queryGoalType())}
+            disabled={!compilerReady || isBusy || !currentGoals.length}
+            ><Info size={14} />Type</button
           >
           <button
-            type="button"
-            class="minibuffer-cancel"
-            onclick={() => {
-              commandKind = null;
-              editor?.focus();
+            title="Context (C-c C-e)"
+            onclick={() => runAction(() => controller.queryContext())}
+            disabled={!compilerReady || isBusy || !currentGoals.length}
+            ><ListChecks size={14} />Context</button
+          ><span class="strip-divider"></span>
+          <button
+            title="Give hole contents (C-c C-Space)"
+            onclick={() => openCommand("give")}
+            disabled={!compilerReady || isBusy || !currentGoals.length}
+            ><Zap size={14} />Give</button
+          >
+          <button
+            title="Refine or introduce (C-c C-r)"
+            onclick={() => openCommand("refine")}
+            disabled={!compilerReady || isBusy || !currentGoals.length}
+            ><WandSparkles size={14} />Refine</button
+          >
+          <button
+            title="Case split (C-c C-c)"
+            onclick={() => openCommand("case")}
+            disabled={!compilerReady || isBusy || !currentGoals.length}
+            ><Split size={14} />Case split</button
+          ><span class="strip-divider"></span>
+          <button
+            title="Infer type (C-c C-d)"
+            onclick={() => openCommand("infer")}
+            disabled={!compilerReady || isBusy}><Sigma size={14} />Infer</button
+          >
+          <button
+            title="Normalize (C-c C-n)"
+            onclick={() => openCommand("normalize")}
+            disabled={!compilerReady || isBusy}
+            ><RotateCcw size={14} />Normalize</button
+          >
+        </div>
+        <div class="editor-host" bind:this={editorHost}></div>
+        {#if commandKind}
+          <form
+            class="minibuffer"
+            onsubmit={(event) => {
+              event.preventDefault();
+              void submitCommand();
             }}
-            aria-label="Cancel command">ESC</button
           >
-        </form>
-      {/if}
-      <footer class="statusbar">
-        {#if !compilerStarting}<span
-            class:success={controller.checked &&
-              !controller.problems.some((p) => p.severity === "error")}
-          >
-            {#if isBusy}<LoaderCircle
-              size={13}
-              class="spin"
-            />{controller.lastAction}{:else if controller.problems.some(
-              (p) => p.severity === "error",
-            )}<CircleAlert
-              size={13}
-            />{controller.problems.filter((p) => p.severity === "error").length} error{:else}<CircleCheck
-              size={13}
-            />{controller.checked ? "Checked" : "Agda ready"}{/if}
-          </span>{/if}<span
-          >{currentGoals.length} goal{currentGoals.length === 1
-            ? ""
-            : "s"}</span
-        ><span class="status-spacer"></span><span>Agda 2.8</span><span
-          >WASI · local</span
-        ><span>UTF-8</span>
-      </footer>
+            <label for="command-input">
+              <span>AGDA</span>
+              <strong>{commandMeta[commandKind].title}</strong>
+            </label>
+            <input
+              id="command-input"
+              class="mono"
+              bind:value={commandValue}
+              placeholder={commandMeta[commandKind].placeholder}
+              title={commandMeta[commandKind].description}
+              autocomplete="off"
+            />
+            <button type="submit" class="minibuffer-run"
+              >{commandMeta[commandKind].action}<span>↵</span></button
+            >
+            <button
+              type="button"
+              class="minibuffer-cancel"
+              onclick={() => {
+                commandKind = null;
+                editor?.focus();
+              }}
+              aria-label="Cancel command">ESC</button
+            >
+          </form>
+        {/if}
+        <footer class="statusbar">
+          {#if !compilerStarting}<span
+              class:success={controller.checked &&
+                !controller.problems.some((p) => p.severity === "error")}
+            >
+              {#if isBusy}<LoaderCircle
+                  size={13}
+                  class="spin"
+                />{controller.lastAction}{:else if controller.problems.some((p) => p.severity === "error")}<CircleAlert
+                  size={13}
+                />{controller.problems.filter((p) => p.severity === "error")
+                  .length} error{:else}<CircleCheck
+                  size={13}
+                />{controller.checked ? "Checked" : "Agda ready"}{/if}
+            </span>{/if}<span
+            >{currentGoals.length} goal{currentGoals.length === 1
+              ? ""
+              : "s"}</span
+          ><span class="status-spacer"></span><span>Agda 2.8</span><span
+            >WASI · local</span
+          ><span>UTF-8</span>
+        </footer>
       </section>
     </section>
 
@@ -1081,11 +1128,11 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
           {#if compilerStarting || isBusy}<LoaderCircle
               size={14}
               class="spin"
-            />{:else if inspectorMode ===
-            "problems"}<TriangleAlert size={14} />{:else if inspectorMode ===
-            "result"}<SquareTerminal size={14} />{:else}<Braces
+            />{:else if inspectorMode === "problems"}<TriangleAlert
               size={14}
-            />{/if}
+            />{:else if inspectorMode === "result"}<SquareTerminal
+              size={14}
+            />{:else}<Braces size={14} />{/if}
           <strong>AGDA INFO</strong>
         </span>
         <span class="inspector-state">
@@ -1106,8 +1153,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
                   class="goal-card"
                   onclick={() => selectGoal(goal.id)}
                   ><span class="goal-number">{goal.id}</span><span
-                    class="goal-content"
-                    ><code>{goal.type ?? "?"}</code></span
+                    class="goal-content"><code>{goal.type ?? "?"}</code></span
                   ><ChevronDown size={15} class="goal-chevron" /></button
                 >{/each}
             </div>
@@ -1157,7 +1203,6 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
         </div>{/if}
     </aside>
   </section>
-
 </main>
 
 <style>
@@ -1206,9 +1251,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
       );
   }
   .workspace.files-closed {
-    grid-template-columns: 44px minmax(320px, 1fr) 5px var(
-        --inspector-width
-      );
+    grid-template-columns: 44px minmax(320px, 1fr) 5px var(--inspector-width);
   }
   .workspace.files-closed .explorer {
     display: none;
@@ -1716,7 +1759,9 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     padding: 3px 4px;
     color: #f4f7f1;
     background: var(--green);
-    font: 700 8px JuliaMono, monospace;
+    font:
+      700 8px JuliaMono,
+      monospace;
     letter-spacing: 0.06em;
   }
   .minibuffer label strong {
@@ -1743,7 +1788,9 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     border-right: 1px solid #697167;
     background: #e9ece6;
     color: #293029;
-    font: 700 9px JuliaMono, monospace;
+    font:
+      700 9px JuliaMono,
+      monospace;
     letter-spacing: 0.035em;
   }
   .minibuffer-run {
@@ -1832,7 +1879,9 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     padding: 0 7px;
     border: 1px solid #a34c45;
     color: var(--red);
-    font: 700 8px JuliaMono, monospace;
+    font:
+      700 8px JuliaMono,
+      monospace;
     letter-spacing: 0.04em;
   }
   .abort-action:hover {
@@ -2044,10 +2093,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
         );
     }
     .workspace.lesson-workspace {
-      grid-template-columns: 42px 180px minmax(300px, 43fr) minmax(
-          350px,
-          57fr
-        );
+      grid-template-columns: 42px 180px minmax(300px, 43fr) minmax(350px, 57fr);
     }
     .workspace.lesson-workspace.files-closed {
       grid-template-columns: 42px minmax(300px, 43fr) minmax(350px, 57fr);
